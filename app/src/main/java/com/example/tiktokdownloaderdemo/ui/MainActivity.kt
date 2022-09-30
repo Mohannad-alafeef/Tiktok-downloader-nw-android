@@ -1,6 +1,7 @@
 package com.example.tiktokdownloaderdemo.ui
 
 import android.Manifest
+import android.content.Intent
 import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.widget.Toast
@@ -53,6 +54,8 @@ class MainActivity : AppCompatActivity() {
 
         }
 
+        getReceivedData()
+
         initRecyclerView()
 
 
@@ -98,6 +101,19 @@ class MainActivity : AppCompatActivity() {
         }
 
 
+    }
+
+    private fun getReceivedData() {
+        when (intent?.action) {
+            Intent.ACTION_SEND -> {
+
+                intent.getStringExtra(Intent.EXTRA_TEXT)?.let {
+                    binding.videoUrl.editText!!.setText(it)
+                    binding.downloadBtn.performClick()
+                }
+
+            }
+        }
     }
 
     private fun initRecyclerView() {
