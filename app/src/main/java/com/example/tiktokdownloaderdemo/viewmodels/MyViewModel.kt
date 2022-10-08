@@ -30,8 +30,8 @@ class MyViewModel @Inject constructor(
         }
     }
 
-    override fun videoResponse(t: VideoModel) {
-        _responseLiveData.value = t
+    override fun videoResponse(video: VideoModel) {
+        _responseLiveData.value = video
     }
 
 }

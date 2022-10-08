@@ -7,24 +7,30 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
-import com.example.tiktokdownloaderdemo.model.VideoModel
 import com.example.tiktokdownloaderdemo.adapter.MyAdapter
 import com.example.tiktokdownloaderdemo.databinding.ActivityMainBinding
+import com.example.tiktokdownloaderdemo.interfaces.ItemClickListener
+import com.example.tiktokdownloaderdemo.model.VideoModel
 import com.example.tiktokdownloaderdemo.util.State
 import com.example.tiktokdownloaderdemo.util.rootFile
 import com.example.tiktokdownloaderdemo.util.saveVideo
 import com.example.tiktokdownloaderdemo.viewmodels.MyViewModel
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), ItemClickListener {
     private lateinit var binding: ActivityMainBinding
     private lateinit var myViewModel: MyViewModel
 
@@ -69,10 +75,10 @@ class MainActivity : AppCompatActivity() {
             Glide.with(this).asFile().load(it.videoUrl).into(object : CustomTarget<File>() {
                 override fun onResourceReady(resource: File, transition: Transition<in File>?) {
 
-                    GlobalScope.launch(Dispatchers.IO) {
+                    lifecycleScope.launch(Dispatchers.IO) {
                         val finished = async { saveVideo(resource, it, this@MainActivity) }
                         val state = finished.await()
-                        if ( state is State.COMPLETE) {
+                        if (state is State.COMPLETE) {
 
                             refreshFiles()
                             withContext(Dispatchers.Main) {
@@ -84,11 +90,12 @@ class MainActivity : AppCompatActivity() {
                             }
 
 
-                        } else {Toast.makeText(
-                            this@MainActivity,
-                            "Download Failed",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        } else {
+                            Toast.makeText(
+                                this@MainActivity,
+                                "Download Failed",
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
 
                     }
@@ -118,7 +125,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun initRecyclerView() {
 
-        myAdapter = MyAdapter(fileList)
+        myAdapter = MyAdapter(fileList, this)
 
         binding.downloaded.apply {
             setHasFixedSize(true)
@@ -133,7 +140,7 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-   suspend fun refreshFiles() {
+    suspend fun refreshFiles() {
         fileList.clear()
         rootFile.listFiles()?.let { f ->
 
@@ -141,7 +148,7 @@ class MainActivity : AppCompatActivity() {
                 fileList.add(it)
             }
         }
-        withContext(Dispatchers.Main){
+        withContext(Dispatchers.Main) {
             myAdapter.notifyDataSetChanged()
         }
 
@@ -155,10 +162,22 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        GlobalScope.launch {
+        lifecycleScope.launch {
             refreshFiles()
         }
     }
 
+    override fun onItemClicked(file: File) {
 
+
+        val uri =
+            FileProvider.getUriForFile(this, applicationContext.packageName + ".provider", file);
+
+        Intent().apply {
+            action = Intent.ACTION_VIEW
+            setDataAndType(uri, contentResolver.getType(uri))
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            startActivity(this)
+        }
+    }
 }
